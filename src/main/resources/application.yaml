@@ -8,6 +8,8 @@ spring:
       hibernate:
         format_sql: true
         show_sql: true
+        use_sql_comments: true # 쿼리들을 JPQL로 변환해서 알려준다.
+
 logging:
   level:
     org.hibernate.SQL: DEBUG
