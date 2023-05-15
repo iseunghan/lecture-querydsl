@@ -4,8 +4,9 @@ import com.querydsl.core.QueryResults;
 import com.querydsl.core.Tuple;
 import com.querydsl.jpa.impl.JPAQuery;
 import com.querydsl.jpa.impl.JPAQueryFactory;
-import jakarta.persistence.EntityManager;
+import jakarta.persistence.*;
 import me.iseunghan.lecturequerydsl.entity.Member;
+import me.iseunghan.lecturequerydsl.entity.QMember;
 import me.iseunghan.lecturequerydsl.entity.Team;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -15,6 +16,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 
+import static me.iseunghan.lecturequerydsl.entity.QMember.*;
 import static me.iseunghan.lecturequerydsl.entity.QMember.member;
 import static me.iseunghan.lecturequerydsl.entity.QTeam.team;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -249,4 +251,46 @@ public class QuerydslTest {
         assertThat(teamB.get(team.name)).isEqualTo("teamB");
         assertThat(teamB.get(member.age.avg())).isEqualTo(10);
     }
+
+    /**
+     * TeamA에 소속된 모든 회원
+     */
+    @Test
+    void join() {
+        List<Member> teamAMembers = queryFactory
+                .selectFrom(member)
+                .join(member.team, team)
+                .on(team.name.eq("teamA"))
+                .fetch();
+
+        assertThat(teamAMembers).hasSize(3);
+        assertThat(teamAMembers)
+                .extracting(Member::getTeam)
+                    .isNotNull()
+                .extracting(Team::getName)
+                    .isNotNull()
+                .contains("teamA")
+        ;
+    }
+
+    /**
+     * 연관관계가 없는 컬럼을 조인
+     * - Member의 이름이 Team 이름과 동일한 컬럼만 가져와라
+     */
+    @Test
+    void theta_join() {
+        em.persist(new Member("teamA"));
+        em.persist(new Member("teamB"));
+
+        List<Member> members = queryFactory
+                .select(member)
+                .from(member, team) // join 없이 그냥 모든 테이블을 다 가져와서 카테시안곱을 이용한다.
+                .where(member.username.eq(team.name))
+                .fetch();
+
+        assertThat(members)
+                .extracting("username")
+                .containsExactly("teamA", "teamB");
+    }
+
 }
