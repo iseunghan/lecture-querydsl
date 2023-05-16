@@ -293,4 +293,35 @@ public class QuerydslTest {
                 .containsExactly("teamA", "teamB");
     }
 
+    @Test
+    void inner_join_filtering() {
+        List<Tuple> teamA = queryFactory
+                .select(member, team)
+                .from(member)
+                // 방법 1.
+                .join(member.team, team).on(team.name.eq("teamA"))
+
+                // 방법 2.
+//                .innerJoin(member.team, team).on(team.name.eq("teamA"))
+
+                // 방법 3. (결과적으로 동일하나, on절을 사용하면 join할 때 좀 더 적은 튜플을 가져와서 최적화할 수 있다.
+//                .join(member.team, team)
+//                .where(team.name.eq("teamA"))
+
+                .fetch();
+
+        teamA.forEach(System.out::println);
+    }
+
+    @Test
+    void left_join_filtering() {
+        List<Tuple> teamA = queryFactory
+                .select(member, team)
+                .from(member)
+                .leftJoin(member.team, team).on(team.name.eq("teamA"))
+                .fetch();
+
+        teamA.forEach(System.out::println);
+    }
+
 }
