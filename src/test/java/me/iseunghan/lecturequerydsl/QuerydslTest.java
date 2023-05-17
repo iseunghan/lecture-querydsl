@@ -324,4 +324,24 @@ public class QuerydslTest {
         teamA.forEach(System.out::println);
     }
 
+    /**
+     * 연관관계가 없는 테이블을 막 조인한다고 가정
+     * - 멤버의 이름과 팀 이름이 같은 튜플을 left join 한다고 했을 때
+     */
+    @Test
+    void join_on_no_relation() {
+        em.persist(new Member("teamA"));
+        em.persist(new Member("teamB"));
+        em.persist(new Member("teamC"));
+
+        List<Tuple> result = queryFactory
+                .select(member, team)
+                .from(member)
+                .leftJoin(team).on(member.username.eq(team.name))   // join on절에는 id가 아닌, username과 name 비교조건이 들어간다.
+                .fetch();
+
+        result.forEach(System.out::println);
+    }
+
+
 }
