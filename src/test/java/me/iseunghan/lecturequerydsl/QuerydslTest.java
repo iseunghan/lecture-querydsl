@@ -343,5 +343,41 @@ public class QuerydslTest {
         result.forEach(System.out::println);
     }
 
+    // EntityManager를 만드는 Factoty를 가져옴
+    @PersistenceUnit
+    EntityManagerFactory emf;
+
+    @Test
+    void fetchJoin_NotUse() {
+        em.flush();
+        em.clear();
+
+        Member member1 = queryFactory
+                .selectFrom(member)
+                .where(member.username.eq("member1"))
+                .fetchOne();
+
+        boolean loaded = emf.getPersistenceUnitUtil().isLoaded(member1.getTeam());
+        // em.getEntityManagerFactory().getPersistenceUnitUtil() 를 통해서도 얻을 수 있다.
+
+        assertThat(loaded).isFalse();
+    }
+
+    @Test
+    void fetchJoin_use() {
+        em.flush();
+        em.clear();
+
+        Member member1 = queryFactory
+                .selectFrom(member)
+                .join(member.team, team).fetchJoin()
+                .where(member.username.eq("member1"))
+                .fetchOne();
+
+        boolean loaded = emf.getPersistenceUnitUtil().isLoaded(member1.getTeam());
+
+        assertThat(loaded).isTrue();
+    }
+
 
 }
