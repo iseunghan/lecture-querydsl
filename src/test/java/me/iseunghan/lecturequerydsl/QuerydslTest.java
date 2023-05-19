@@ -379,5 +379,89 @@ public class QuerydslTest {
         assertThat(loaded).isTrue();
     }
 
+    /**
+     * 나이가 가장 많은 회원 조회
+     */
+    @Test
+    void subQuery_Max_Age() {
+        QMember m = new QMember("m");   // QMember를 또 생성한 이유? 서브쿼리에 들어가는 Memeber의 alias가 동일하면 안되기 때문에.
+
+        Member member1 = queryFactory
+                .select(member)
+                .from(member)
+                .where(member.age.eq(
+                        JPAExpressions
+                                .select(m.age.max())
+                                .from(m)
+                ))
+                .fetchOne();
+
+        assertThat(member1.getAge()).isEqualTo(80);
+    }
+
+    /**
+     * 나이가 평균보다 큰 회원 조회
+     */
+    @Test
+    void subQuery_Age_Goe() {
+        QMember m = new QMember("m");
+
+        List<Member> members = queryFactory
+                .select(member)
+                .from(member)
+                .where(member.age.goe(
+                        JPAExpressions
+                                .select(m.age.avg())
+                                .from(m)
+                ))
+                .fetch();
+
+        assertThat(members).extracting("age")
+                .containsExactly(60, 70, 80);
+    }
+
+    /**
+     * 나이가 해당되는 회원 조회
+     */
+    @Test
+    void subQuery_Age_In() {
+        QMember m = new QMember("m");
+
+        List<Member> members = queryFactory
+                .select(member)
+                .from(member)
+                .where(member.age.in(
+                        JPAExpressions
+                                .select(m.age)
+                                .from(m)
+                                .where(m.age.goe(30))
+                ))
+                .fetch();
+
+        assertThat(members).extracting("age")
+                .containsExactly(60, 70, 80);
+    }
+
+    /**
+     * 회원이름, 평균나이(Select 서브쿼리 이용) 조회
+     */
+    @Test
+    void selectSubQuery() {
+        QMember m = new QMember("m");
+
+        List<Tuple> tuples = queryFactory
+                .select(
+                        member.username,
+                        JPAExpressions.select(m.age.avg())
+                                .from(m)
+                )
+                .from(member)
+                .fetch();
+
+        for (Tuple tuple : tuples) {
+            System.out.println("tuple = " + tuple);
+        }
+    }
+
 
 }
