@@ -463,5 +463,37 @@ public class QuerydslTest {
         }
     }
 
+    @Test
+    void basicCase() {
+        List<String> result = queryFactory
+                .select(member.age
+                        .when(10).then("10살")
+                        .when(30).then("30살")
+                        .when(40).then("40살")
+                        .otherwise("기타")
+                ).from(member)
+                .fetch();
+
+        for (String s : result) {
+            System.out.println("s = " + s);
+        }
+    }
+
+    @Test
+    void complexCase() {
+        List<String> result = queryFactory
+                .select(new CaseBuilder()
+                        .when(member.age.between(10, 20)).then("10~20")
+                        .when(member.age.between(21, 60)).then("21~60")
+                        .when(member.age.between(61, 100)).then("61~100")
+                        .otherwise("기타")
+                ).from(member)
+                .fetch();
+
+        for (String s : result) {
+            System.out.println("s = " + s);
+        }
+    }
+
 
 }
