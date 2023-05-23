@@ -495,5 +495,28 @@ public class QuerydslTest {
         }
     }
 
+    @Test
+    void constant() {
+        List<Tuple> result = queryFactory.select(member.username, Expressions.constant("AnyStr"))
+                .from(member)
+                .fetch();
+
+        for (Tuple tuple : result) {
+            System.out.println("tuple = " + tuple);
+        }
+    }
+
+    @Test
+    void concat() {
+        // concat은 문자타입만 된다. 그렇기 때문에 꼭 stringValue()를 사용해주자. stringValue는 Enum 타입 컬럼에 쓰기 좋다.
+        List<String> result = queryFactory.select(member.username.concat("_").concat(member.age.stringValue()))
+                .from(member)
+                .fetch();
+
+        for (String str : result) {
+            System.out.println("str = " + str);
+        }
+    }
+
 
 }
