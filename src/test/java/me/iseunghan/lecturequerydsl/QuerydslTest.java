@@ -2,9 +2,19 @@ package me.iseunghan.lecturequerydsl;
 
 import com.querydsl.core.QueryResults;
 import com.querydsl.core.Tuple;
-import com.querydsl.jpa.impl.JPAQuery;
+import com.querydsl.core.types.ExpressionUtils;
+import com.querydsl.core.types.Projections;
+import com.querydsl.core.types.dsl.CaseBuilder;
+import com.querydsl.core.types.dsl.Expressions;
+import com.querydsl.jpa.JPAExpressions;
 import com.querydsl.jpa.impl.JPAQueryFactory;
-import jakarta.persistence.*;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.EntityManagerFactory;
+import jakarta.persistence.PersistenceUnit;
+import me.iseunghan.lecturequerydsl.dto.MemberDiffFieldDto;
+import me.iseunghan.lecturequerydsl.dto.MemberDto;
+import me.iseunghan.lecturequerydsl.dto.MemberQueryDslDto;
+import me.iseunghan.lecturequerydsl.dto.QMemberQueryDslDto;
 import me.iseunghan.lecturequerydsl.entity.Member;
 import me.iseunghan.lecturequerydsl.entity.QMember;
 import me.iseunghan.lecturequerydsl.entity.Team;
@@ -16,7 +26,6 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 
-import static me.iseunghan.lecturequerydsl.entity.QMember.*;
 import static me.iseunghan.lecturequerydsl.entity.QMember.member;
 import static me.iseunghan.lecturequerydsl.entity.QTeam.team;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -49,11 +58,17 @@ public class QuerydslTest {
         Member member3 = new Member("member3", 10, teamA);
         Member member4 = new Member("member4", 10, teamB);
         Member member5 = new Member("member5", 10, teamB);
+        Member member6 = new Member("member5", 60, teamB);
+        Member member7 = new Member("member5", 70, teamB);
+        Member member8 = new Member("member5", 80, teamB);
         em.persist(member1);
         em.persist(member2);
         em.persist(member3);
         em.persist(member4);
         em.persist(member5);
+        em.persist(member6);
+        em.persist(member7);
+        em.persist(member8);
 
         em.flush();
         em.clear();
@@ -518,5 +533,118 @@ public class QuerydslTest {
         }
     }
 
+    // DTO로 조회하기
+    // 1) JPQL로 DTO 조회
+    @Test
+    void JPA_DTO() {
+        List<MemberDto> resultList = em.createQuery("select new me.iseunghan.lecturequerydsl.dto.MemberDto(m.username, m.age) from Member m", MemberDto.class)
+                .getResultList();
 
+        for (MemberDto memberDto : resultList) {
+            System.out.println("memberDto = " + memberDto);
+        }
+    }
+
+    // 2-1) Querydsl - Field Injection (필드에 직접 주입)
+    @Test
+    void Querydsl_Field_Injection() {
+        List<MemberDto> fetch = queryFactory.select(Projections.fields(MemberDto.class,
+                        member.username,
+                        member.age
+                ))
+                .from(member)
+                .fetch();
+
+        for (MemberDto memberDto : fetch) {
+            System.out.println("memberDto = " + memberDto);
+        }
+    }
+
+    @Test
+    void Querydsl_Field_Injection2() {
+        // 만약 조회된 컬럼명이랑 DTO 필드명이 다른경우에는? 값이 제대로 들어가지 않는다. as 별칭을 이용해 매핑해준다.
+        List<MemberDiffFieldDto> fetch = queryFactory.select(Projections.fields(MemberDiffFieldDto.class,
+                        member.username.as("name"),
+                        member.age.as("myAge")
+                ))
+                .from(member)
+                .fetch();
+
+        for (MemberDiffFieldDto memberDto : fetch) {
+            System.out.println("memberDto = " + memberDto);
+        }
+    }
+
+    // 2-2) Querydsl - Constructor Injection (생성자 주입) - 생성자는 필드명이 아닌 타입을 체크, 생성자 순서도 맞아야함
+    @Test
+    void Querydsl_Constructor() {
+        List<MemberDto> fetch = queryFactory.select(Projections.constructor(MemberDto.class,
+                        member.username,
+                        member.age
+                ))
+                .from(member)
+                .fetch();
+
+        for (MemberDto memberDto : fetch) {
+            System.out.println("memberDto = " + memberDto);
+        }
+    }
+
+    // 2-3) Querydsl - Setter Injection (Setter 주입)
+    @Test
+    void Querydsl_Setter_Injection() {
+        List<MemberDto> fetch = queryFactory.select(Projections.bean(MemberDto.class,
+                        member.username,
+                        member.age
+                ))
+                .from(member)
+                .fetch();
+
+        for (MemberDto memberDto : fetch) {
+            System.out.println("memberDto = " + memberDto);
+        }
+    }
+
+    @Test
+    void Querydsl_Setter_Injection2() {
+        List<MemberDiffFieldDto> fetch = queryFactory.select(Projections.bean(MemberDiffFieldDto.class,
+                        member.username.as("name"),
+                        member.age.as("myAge")
+                ))
+                .from(member)
+                .fetch();
+
+        for (MemberDiffFieldDto memberDto : fetch) {
+            System.out.println("memberDto = " + memberDto);
+        }
+    }
+
+    // subQuery를 쓰는데 필드명도 다르다면, ExpressionUtils.as를 사용
+    @Test
+    void Querydsl_Setter_Injection3_select_subQuery() {
+        QMember subM = new QMember("subM");
+        List<MemberDiffFieldDto> fetch = queryFactory.select(Projections.bean(MemberDiffFieldDto.class,
+                        member.username.as("name"),
+                        ExpressionUtils.as(JPAExpressions
+                                .select(subM.age.max())
+                                .from(subM), "myAge")
+                ))
+                .from(member)
+                .fetch();
+
+        for (MemberDiffFieldDto memberDto : fetch) {
+            System.out.println("memberDto = " + memberDto);
+        }
+    }
+
+    @Test
+    void queryProjection() {
+        List<MemberQueryDslDto> fetch = queryFactory.select(new QMemberQueryDslDto(member.username, member.age))
+                .from(member)
+                .fetch();
+
+        for (MemberQueryDslDto memberQueryDslDto : fetch) {
+            System.out.println("memberQueryDslDto = " + memberQueryDslDto);
+        }
+    }
 }
