@@ -1,9 +1,12 @@
 package me.iseunghan.lecturequerydsl;
 
+import com.querydsl.core.BooleanBuilder;
 import com.querydsl.core.QueryResults;
 import com.querydsl.core.Tuple;
 import com.querydsl.core.types.ExpressionUtils;
+import com.querydsl.core.types.Predicate;
 import com.querydsl.core.types.Projections;
+import com.querydsl.core.types.dsl.BooleanExpression;
 import com.querydsl.core.types.dsl.CaseBuilder;
 import com.querydsl.core.types.dsl.Expressions;
 import com.querydsl.jpa.JPAExpressions;
@@ -20,11 +23,15 @@ import me.iseunghan.lecturequerydsl.entity.QMember;
 import me.iseunghan.lecturequerydsl.entity.Team;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
 
 import java.util.List;
+import java.util.Objects;
 
 import static me.iseunghan.lecturequerydsl.entity.QMember.member;
 import static me.iseunghan.lecturequerydsl.entity.QTeam.team;
@@ -646,5 +653,73 @@ public class QuerydslTest {
         for (MemberQueryDslDto memberQueryDslDto : fetch) {
             System.out.println("memberQueryDslDto = " + memberQueryDslDto);
         }
+    }
+
+    @CsvSource(value = {
+            "username, 10",
+            "username, ",
+            ", 10",
+    })
+    @ParameterizedTest
+    void dynamicQuery_booleanBuilder(
+            String username,
+            Integer age
+    ) {
+        BooleanBuilder builder = new BooleanBuilder();
+
+        if (StringUtils.hasText(username)) {
+            builder.and(member.username.eq(username));
+        }
+        if (Objects.nonNull(age)) {
+            builder.and(member.age.eq(age));
+        }
+
+        List<Member> fetch = queryFactory.selectFrom(member)
+                .where(builder)
+                .fetch();
+
+        for (Member fetch1 : fetch) {
+            System.out.println("fetch1 = " + fetch1);
+        }
+    }
+
+    @CsvSource(value = {
+            "username, 10",
+            "username, ",
+            ", 10",
+    })
+    @ParameterizedTest
+    void dynamicQuery_whereParam1(
+            String username,
+            Integer age
+    ) {
+        List<Member> fetch = queryFactory.selectFrom(member)
+//                .where(usernameEq(username), ageEq(age)) // null 이라면, where 조건 무시가 됨!
+                .where(findUserCond(username, age)) // composition!
+                .fetch();
+
+        for (Member fetch1 : fetch) {
+            System.out.println("fetch1 = " + fetch1);
+        }
+    }
+
+    private BooleanExpression usernameEq(String username) {
+        return username != null ? member.username.eq(username) : null;
+    }
+
+    private BooleanExpression ageEq(Integer age) {
+        return age != null ? member.age.eq(age) : null;
+    }
+
+    /**
+     * Querydsl의 장점!
+     *   분리시킨 BooleanExpression 조건을 Composition(합성)을 통해 구성할 수 있음. (재사용성)
+     *   - 이렇게 되면 예를들어, .where(usernameEq(username), ageEq(age)) 이거보다
+     *     .where(findUserCond(username, age)) 으로 작성하면 코드로 한번에 알아보기 쉬움 (가독성)
+     */
+    private BooleanExpression findUserCond(String username, Integer age) {
+        // null 처리 해줘야 함
+        return username != null ? usernameEq(username).and(ageEq(age))
+                : age != null ? ageEq(age).and(usernameEq(username)) : null;
     }
 }
