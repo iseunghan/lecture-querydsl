@@ -722,4 +722,107 @@ public class QuerydslTest {
         return username != null ? usernameEq(username).and(ageEq(age))
                 : age != null ? ageEq(age).and(usernameEq(username)) : null;
     }
+
+
+    @Test
+    void bulkUpdate() {
+        List<Member> fetch12 = queryFactory.select(member)
+                .from(member)
+                .fetch();
+
+        for (Member fetch11 : fetch12) {
+            System.out.println("fetch1 = " + fetch11);
+        }
+
+        System.out.println("---------------------------");
+
+        // 벌크연산은 바로 DB로 쏘기 때문에, 영속성 컨텍스트와 DB 불일치 발생
+        long count = queryFactory
+                .update(member)
+                .set(member.username, "계정보호")
+                .where(member.age.lt(18))
+                .execute();
+        // 벌크연산 이후에 필수!! 영속성 컨텍스트를 아예 비워버리자.
+        em.flush();
+        em.clear();
+
+        assertThat(count).isGreaterThan(0);
+
+        List<Member> fetch = queryFactory.select(member)
+                .from(member)
+                .where(member.age.lt(18))
+                .fetch();
+
+        for (Member fetch1 : fetch) {
+            System.out.println("fetch1 = " + fetch1);
+        }
+
+        assertThat(fetch).extracting("username")
+                .allMatch(s -> s.equals("계정보호"));
+    }
+
+    @Test
+    void bulkUpdate_Caution() {
+        List<Member> fetch12 = queryFactory.select(member)
+                .from(member)
+                .fetch();
+
+        for (Member fetch11 : fetch12) {
+            System.out.println("fetch1 = " + fetch11);
+        }
+
+        System.out.println("---------------------------");
+
+        long count = queryFactory
+                .update(member)
+                .set(member.username, "계정보호")
+                .where(member.age.lt(18))
+                .execute();
+
+        assertThat(count).isGreaterThan(0);
+
+        List<Member> fetch = queryFactory.select(member)
+                .from(member)
+                .where(member.age.lt(18))
+                .fetch();
+
+        for (Member fetch1 : fetch) {
+            System.out.println("fetch1 = " + fetch1);
+        }
+
+        assertThat(fetch).extracting("username")
+                .allMatch(s -> s.equals("계정보호"));
+    }
+
+    @Test
+    void bulk_Add() {
+        long count = queryFactory
+                .update(member)
+                .set(member.age, member.age.add(1))
+                .execute();
+    }
+
+    @Test
+    void bulk_Minus() {
+        long count = queryFactory
+                .update(member)
+                .set(member.age, member.age.add(-1))    // minus는 따로 없다
+                .execute();
+    }
+
+    @Test
+    void bulk_Multiply() {
+        long count = queryFactory
+                .update(member)
+                .set(member.age, member.age.multiply(10))   // devide 등등 여러개가 있으니 찾아서 사용!
+                .execute();
+    }
+
+    @Test
+    void bulk_delete() {
+        long count = queryFactory
+                .delete(member)
+                .where(member.age.lt(18))
+                .execute();
+    }
 }
