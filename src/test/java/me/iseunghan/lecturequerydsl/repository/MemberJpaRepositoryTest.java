@@ -8,6 +8,8 @@ import me.iseunghan.lecturequerydsl.entity.Team;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
@@ -21,6 +23,7 @@ class MemberJpaRepositoryTest {
 
     @Autowired EntityManager em;
     @Autowired MemberJpaRepository memberJpaRepository;
+    @Autowired MemberRepository memberRepository;
 
     @Test
     void jpaBasicTest() {
@@ -125,6 +128,43 @@ class MemberJpaRepositoryTest {
 
         // then
         assertThat(result).extracting("username").containsExactly("member5");
+    }
+
+    @Test
+    void spring_data_jpa_dynamicQuerydsl_WhereParams_Test() {
+        // given
+        setup();
+
+        MemberSearchCond cond = new MemberSearchCond();
+        cond.setUsername("member5");
+        cond.setAgeGoe(40);
+        cond.setAgeLoe(80);
+        cond.setTeamName("teamB");
+
+        // when
+        List<MemberTeamDto> result = memberRepository.search(cond);
+
+        // then
+        assertThat(result).extracting("username").containsExactly("member5");
+    }
+
+    @Test
+    void spring_data_jpa_pageable_Test() {
+        // given
+        setup();
+        PageRequest pageRequest = PageRequest.of(0, 3);
+        MemberSearchCond cond = new MemberSearchCond();
+        cond.setAgeGoe(1);
+        cond.setAgeLoe(100);
+
+        // when
+        Page<MemberTeamDto> result = memberRepository.searchComplexPage(cond, pageRequest);
+
+        // then
+        assertThat(result.getTotalElements()).isEqualTo(8);
+        assertThat(result.getContent())
+                .extracting("username")
+                .containsExactly("member1", "member2", "member3");
     }
 
 }
