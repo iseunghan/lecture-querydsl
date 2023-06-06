@@ -8,8 +8,8 @@ import me.iseunghan.lecturequerydsl.dto.MemberSearchCond;
 import me.iseunghan.lecturequerydsl.dto.MemberTeamDto;
 import me.iseunghan.lecturequerydsl.dto.QMemberTeamDto;
 import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.support.PageableExecutionUtils;
 
 import java.util.List;
 import java.util.Objects;
@@ -63,7 +63,7 @@ public class MemberRepositoryCustomImpl implements MemberRepositoryCustom {
                 .limit(pageable.getPageSize())
                 .fetch();
 
-        Long total = queryFactory
+        JPAQuery<Long> countQuery = queryFactory
                 .select(member.count())
                 .from(member)
                 .join(member.team, team)
@@ -72,10 +72,9 @@ public class MemberRepositoryCustomImpl implements MemberRepositoryCustom {
                         teamNameEq(cond.getTeamName()),
                         memberAgeGoe(cond.getAgeGoe()),
                         memberAgeLoe(cond.getAgeLoe())
-                )
-                .fetchOne();
+                );
 
-        return new PageImpl<>(content, pageable, total);
+        return PageableExecutionUtils.getPage(content, pageable, countQuery::fetchOne);
     }
 
     /**
