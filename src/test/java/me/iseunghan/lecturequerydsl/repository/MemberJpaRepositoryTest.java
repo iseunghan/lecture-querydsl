@@ -4,6 +4,7 @@ import jakarta.persistence.EntityManager;
 import me.iseunghan.lecturequerydsl.dto.MemberSearchCond;
 import me.iseunghan.lecturequerydsl.dto.MemberTeamDto;
 import me.iseunghan.lecturequerydsl.entity.Member;
+import me.iseunghan.lecturequerydsl.entity.QMember;
 import me.iseunghan.lecturequerydsl.entity.Team;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -165,6 +166,20 @@ class MemberJpaRepositoryTest {
         assertThat(result.getContent())
                 .extracting("username")
                 .containsExactly("member1", "member2", "member3");
+    }
+
+    @Test
+    void querydsl_executor_test() {
+        setup();
+        QMember member = QMember.member;
+
+        Iterable<Member> findMembers = memberRepository.findAll(
+                member.age.between(10, 40)
+                        .and(member.username.like("member%")));
+
+        for (Member findMember : findMembers) {
+            System.out.println("findMember = " + findMember);
+        }
     }
 
 }
