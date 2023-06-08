@@ -17,6 +17,7 @@ import java.util.List;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.catchIndexOutOfBoundsException;
 
 @Transactional
 @SpringBootTest
@@ -180,6 +181,22 @@ class MemberJpaRepositoryTest {
         for (Member findMember : findMembers) {
             System.out.println("findMember = " + findMember);
         }
+    }
+
+    @Test
+    void querydsl_pageable_support_test() {
+        setup();
+        PageRequest pageRequest = PageRequest.of(0, 3);
+        MemberSearchCond cond = new MemberSearchCond();
+        cond.setAgeGoe(1);
+        cond.setAgeLoe(100);
+
+        Page<MemberTeamDto> result = memberRepository.searchComplexPage_Support(cond, pageRequest);
+
+        assertThat(result.getTotalElements()).isEqualTo(8);
+        assertThat(result.getContent())
+                .extracting("username")
+                .containsExactly("member1", "member2", "member3");
     }
 
 }

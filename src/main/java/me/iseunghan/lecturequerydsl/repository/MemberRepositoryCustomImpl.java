@@ -1,14 +1,19 @@
 package me.iseunghan.lecturequerydsl.repository;
 
+import com.querydsl.core.QueryResults;
 import com.querydsl.core.types.dsl.BooleanExpression;
+import com.querydsl.jpa.JPQLQuery;
 import com.querydsl.jpa.impl.JPAQuery;
 import com.querydsl.jpa.impl.JPAQueryFactory;
 import jakarta.persistence.EntityManager;
 import me.iseunghan.lecturequerydsl.dto.MemberSearchCond;
 import me.iseunghan.lecturequerydsl.dto.MemberTeamDto;
 import me.iseunghan.lecturequerydsl.dto.QMemberTeamDto;
+import me.iseunghan.lecturequerydsl.entity.Member;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.repository.support.QuerydslRepositorySupport;
 import org.springframework.data.support.PageableExecutionUtils;
 
 import java.util.List;
@@ -18,11 +23,12 @@ import static me.iseunghan.lecturequerydsl.entity.QMember.member;
 import static me.iseunghan.lecturequerydsl.entity.QTeam.team;
 import static org.springframework.util.StringUtils.hasText;
 
-public class MemberRepositoryCustomImpl implements MemberRepositoryCustom {
+public class MemberRepositoryCustomImpl extends QuerydslRepositorySupport implements MemberRepositoryCustom {
 
     private final JPAQueryFactory queryFactory;
 
     public MemberRepositoryCustomImpl(EntityManager em) {
+        super(Member.class);
         this.queryFactory = new JPAQueryFactory(em);
     }
 
@@ -75,6 +81,29 @@ public class MemberRepositoryCustomImpl implements MemberRepositoryCustom {
                 );
 
         return PageableExecutionUtils.getPage(content, pageable, countQuery::fetchOne);
+    }
+
+    @Override
+    public Page<MemberTeamDto> searchComplexPage_Support(MemberSearchCond cond, Pageable pageable) {
+        JPQLQuery<MemberTeamDto> jpqlQuery = from(member)
+                .join(member.team, team)
+                .where(
+                        usernameEq(cond.getUsername()),
+                        teamNameEq(cond.getTeamName()),
+                        memberAgeGoe(cond.getAgeGoe()),
+                        memberAgeLoe(cond.getAgeLoe())
+                )
+                .select(new QMemberTeamDto(
+                        member.id.as("memberId"),
+                        member.username,
+                        member.age,
+                        team.id.as("teamId"),
+                        team.name.as("teamName")));
+
+        JPQLQuery<MemberTeamDto> query = getQuerydsl().applyPagination(pageable, jpqlQuery);
+        QueryResults<MemberTeamDto> result = query.fetchResults();
+
+        return new PageImpl<>(result.getResults(), pageable, result.getTotal());
     }
 
     /**
